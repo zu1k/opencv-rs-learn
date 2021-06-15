@@ -1,9 +1,4 @@
-use opencv::{
-    core::{self, Scalar, Size, Point}, 
-    imgcodecs, 
-    imgproc, 
-    prelude::*
-};
+use opencv::{core::{self, CV_32F, Point, Scalar, Size}, imgcodecs, imgproc, prelude::*};
 
 fn process(src: &str, dst: &str) -> opencv::Result<()> {
     let img_origin = imgcodecs::imread(src, imgcodecs::IMREAD_ANYCOLOR)?;
@@ -60,10 +55,132 @@ fn process(src: &str, dst: &str) -> opencv::Result<()> {
         imgproc::morphology_default_border_value()?
     )?;
 
+    // 设置黑色区域为透明
+    let mut img_trans = Mat::default();
+    imgproc::cvt_color(
+        &img_select, 
+        &mut img_trans, 
+        imgproc::COLOR_BGR2BGRA, 
+        0
+    )?;
+
+    
+
     imgcodecs::imwrite(dst, &img_select, &core::Vector::default())?;
     Ok(())
 }
 
+fn a4(src: &str) -> opencv::Result<()> {
+    let height = 900;
+
+    // read img file
+    let img_origin = imgcodecs::imread(src, imgcodecs::IMREAD_ANYCOLOR)?;
+
+    // resize
+    let mut img_resize = Mat::default();
+    let devide = img_origin.size()?.height/height;
+    let width = img_origin.size()?.width/devide;
+    imgproc::resize(
+        &img_origin, 
+        &mut img_resize, 
+        core::Size::new(width, height),
+        0., 
+        0., 
+        imgproc::INTER_LINEAR
+    )?;
+
+    // gaussian blur
+    let mut img_gauss = Mat::default();
+    imgproc::gaussian_blur(
+        &img_resize, 
+        &mut img_gauss, 
+        Size::new(3, 3), 
+        2., 
+        2., 
+        core::BORDER_DEFAULT
+    )?;
+
+    // canny
+    let mut img_canny = Mat::default();
+    imgproc::canny(
+        &img_gauss, 
+        &mut img_canny, 
+        60., 
+        240., 
+        3, 
+        false
+    )?;
+
+    // dilate
+    let mut img_dilate = Mat::default();
+    let kernel = imgproc::get_structuring_element(
+        imgproc::MORPH_ELLIPSE, 
+        Size::new(3, 3), 
+        Point::new(-1, -1)
+    )?;
+    imgproc::dilate(
+        &img_canny, 
+        &mut img_dilate, 
+            &kernel, 
+        Point::new(-1, -1), 
+        1, 
+        core::BORDER_CONSTANT, 
+        imgproc::morphology_default_border_value()?
+    )?;
+
+    // find max contour
+    let mut contours: core::Vector<core::Vector<Point>> = core::Vector::default();
+    imgproc::find_contours(
+        &img_dilate,
+        &mut contours, 
+        imgproc::RETR_EXTERNAL, 
+        imgproc::CHAIN_APPROX_NONE, 
+        Point::new(-1, -1)
+    )?;
+    let mut max_contour: core::Vector<Point> = core::Vector::default();
+    let mut max_area = 0.;
+    for contour in contours {
+        let area = imgproc::contour_area(&contour, false)?;
+        if area>max_area {
+            max_area = area;
+            max_contour = contour;
+        }
+    }
+
+    // get box point
+    let mut hull = core::Vector::<Point>::default();
+    imgproc::convex_hull(
+        &max_contour, 
+        &mut hull, 
+        false, 
+        true
+    )?;
+
+    let epsilon = 0.02 * imgproc::arc_length(&max_contour, true)?;
+    let mut approx = Mat::default();
+    imgproc::approx_poly_dp(
+        &hull, 
+        &mut approx, 
+        epsilon, 
+        true
+    )?;
+    let mut points = approx.reshape(approx.rows(), 2)?;
+
+    // let ratio:f64 = 900.0/img_origin.size()?.height as f64;
+    // // ada point
+    // let box_pro = points.clone();
+    // if ratio!=1.0 {
+    //     box_pro = points;
+    // }
+
+
+
+
+    Ok(())
+}
+
+
 fn main() {
-    process("E:\\projects\\cv\\1.jpg", "E:\\projects\\cv\\2.jpg").unwrap()
+    // process("E:\\projects\\cv\\1.jpg", "E:\\projects\\cv\\2.jpg").unwrap()
+    a4("E:\\projects\\cv\\1.jpg").unwrap();
 }
