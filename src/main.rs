@@ -157,21 +157,27 @@ fn a4(src: &str) -> opencv::Result<()> {
     )?;
 
     let epsilon = 0.02 * imgproc::arc_length(&max_contour, true)?;
-    let mut approx = Mat::default();
+    let mut approx = core::Vector::<Point>::default();
     imgproc::approx_poly_dp(
         &hull, 
         &mut approx, 
         epsilon, 
         true
     )?;
-    let mut points = approx.reshape(approx.rows(), 2)?;
 
-    // let ratio:f64 = 900.0/img_origin.size()?.height as f64;
+    let ratio:f64 = 900.0/img_origin.size()?.height as f64;
     // // ada point
-    // let box_pro = points.clone();
-    // if ratio!=1.0 {
-    //     box_pro = points;
-    // }
+    let mut points = Mat::default();
+    if ratio!=1.0 {
+        points = Mat::from_exact_iter(approx.iter().map(|x| x/ratio as i32))?;
+    } else {
+        points = Mat::from_exact_iter(approx.iter())?;
+    }
+    let boxes = points.reshape(points.rows(), 2)?;
+
+    // order
+
+
 
 
 
