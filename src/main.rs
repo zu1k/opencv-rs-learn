@@ -165,19 +165,22 @@ fn a4(src: &str) -> opencv::Result<()> {
         true
     )?;
 
+    println!("approx = {:?}", approx);
+
     let ratio:f64 = 900.0/img_origin.size()?.height as f64;
+    
     // // ada point
-    let mut points = Mat::default();
-    if ratio!=1.0 {
-        points = Mat::from_exact_iter(approx.iter().map(|x| x/ratio as i32))?;
-    } else {
-        points = Mat::from_exact_iter(approx.iter())?;
-    }
-    let boxes = points.reshape(points.rows(), 2)?;
+    let mut points = Mat::from_exact_iter(approx.iter())?;
+    // if ratio!=1.0 {
+    //     points = Mat::from_exact_iter(approx.iter().map(|x| ((x as f64/ratio)) as i32))?;
+    // }
+    let points_total = points.total()? as i32;
+    let boxes = points.reshape(2, points_total/2)?;
+    println!("boxes = {:?}", boxes);
 
     // order
-
-
+    let mut rect = Mat::zeros(4, 2, core::CV_32F)?.to_mat()?;
+    println!("rect = {:?}", rect);
 
 
 
